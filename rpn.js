@@ -45,7 +45,69 @@ window["rpn"] =
 (function(){
 "use strict";
 
-	/**
+
+/**
+ * @description 演算子・その他演算機能の定義
+ * 	Order: 演算の優先順位（MDNの定義に準拠）
+ * 		https://developer.mozilla.org/ja/docs/Web/JavaScript/Reference/Operators/Operator_Precedence
+ * 	Arity: 演算項の数
+ *	AssocLow: 結合法則（"":なし, "L":左結合(left to right), "R":右結合(right to left)）
+ * 	fn: 演算処理
+ */
+var OperateTable = {
+	'(': { Order:20, Type:"state", Arity: 0, AssocLow: "",
+			fn: function(){}
+		},
+	')': { Order:20, Type:"state", Arity: 0, AssocLow: "",
+			fn: function(){}
+		},
+	//+符合の代替
+	'#': {Order:16, Type:"op", Arity: 1, AssocLow: "R",
+			fn: function(_L){ return _L; }
+		},
+	//-符合の代替
+	'_': {Order:16, Type:"op", Arity: 1, AssocLow: "R",
+			fn: function(_L){ return -_L; }
+		},
+	'~': {Order:16, Type:"op", Arity: 1, AssocLow: "R",
+			fn: function(_L){ return ~_L; }
+		},
+	'**': {Order:15, Type:"op", Arity: 2, AssocLow: "R",
+			fn: function(_L, _R){ return _L ** _R; }
+		},
+	'*': {Order:14, Type:"op", Arity: 2, AssocLow: "L",
+			fn: function(_L, _R){ return _L * _R; }	
+		},
+	'/': {Order:14, Type:"op", Arity: 2, AssocLow: "L",
+			fn: function(_L, _R){ return _L / _R; }
+		},
+	'%': {Order:14, Type:"op", Arity: 2, AssocLow: "L",
+			fn: function(_L, _R){ return _L % _R; }
+		},
+	'+': {Order:13, Type:"op", Arity: 2, AssocLow: "L",
+			fn: function(_L, _R){ return _L + _R; }
+		},
+	'-': {Order:13, Type:"op", Arity: 2, AssocLow: "L",
+			fn: function(_L, _R){ return _L - _R; }
+		},
+	'<<': {Order:12, Type:"op", Arity: 2, AssocLow: "L",
+			fn: function(_L, _R){ return _L << _R; }
+		},
+	'>>': {Order:12, Type:"op", Arity: 2, AssocLow: "L",
+			fn: function(_L, _R){ return _L >> _R; }
+		},
+	'&': {Order:9, Type:"op", Arity: 2, AssocLow: "L",
+			fn: function(_L, _R){ return _L & _R; }
+		},
+	'^': {Order:8, Type:"op", Arity: 2, AssocLow: "L",
+			fn: function(_L, _R){ return _L ^ _R; }
+		},
+	'|': {Order:7, Type:"op", Arity: 2, AssocLow: "L",
+			fn: function(_L, _R){ return _L | _R; }
+		}
+};
+
+/**
  * @description 逆ポーランド記法の式を計算する
  * @param {string} rpn_exp 計算式
  */
@@ -58,13 +120,13 @@ function rpn(rpn_exp){
 		if(_val == ""){ return; }
 
 		//演算子判定
-		if(rpn.OperateTable[_val] != null){
-			_stack.push({value:_val, Type:rpn.OperateTable[_val].Type});
+		if(OperateTable[_val] != null){
+			_stack.push({value:_val, Type:OperateTable[_val].Type});
 			return;
 		}
 
 		//演算子を含む文字列かどうか判定
-		for(var op in rpn.OperateTable){
+		for(var op in OperateTable){
 			var piv = _val.indexOf(op);
 			if(piv != -1){
 				fnSplitOperator(_val.substring(0, piv), _stack);
@@ -116,7 +178,7 @@ function rpn(rpn_exp){
 
 			//演算子・計算機能
 			case "op": case "fn":
-				var operate = rpn.OperateTable[elem.value];
+				var operate = OperateTable[elem.value];
 				if(operate == null){ throw new Error("not exist operate:" + elem.value); }
 
 				//演算に必要な数だけ演算項を抽出
@@ -181,7 +243,7 @@ rpn["Generate"] = function(exp){
 
 		//演算子抽出
 		var op = null;
-		for(var key in rpn.OperateTable){
+		for(var key in OperateTable){
 			if(exp.indexOf(key) === 0){
 				op = key;
 				exp = exp.substring(key.length);
@@ -209,9 +271,9 @@ rpn["Generate"] = function(exp){
 				//・演算子スタックの先頭にある演算子より優先度が高い
 				//・演算子スタックの先頭にある演算子と優先度が同じでかつ結合法則がright to left
 				if( ope_stack[depth].length === 0 ||
-						rpn.OperateTable[op].Order > rpn.OperateTable[ope_stack[depth][0]].Order ||
-						(rpn.OperateTable[op].Order === rpn.OperateTable[ope_stack[depth][0]].Order
-							&& rpn.OperateTable[op].AssocLow==="R")
+						OperateTable[op].Order > OperateTable[ope_stack[depth][0]].Order ||
+						(OperateTable[op].Order === OperateTable[ope_stack[depth][0]].Order
+							&& OperateTable[op].AssocLow==="R")
 				){
 						ope_stack[depth].unshift(op);
 				}
@@ -223,7 +285,7 @@ rpn["Generate"] = function(exp){
 						var ope = ope_stack[depth].shift();
 						Polish.push( ope );
 						//演算優先度が、スタック先頭の演算子以上ならば、続けて式に演算子を積む
-						if( rpn.OperateTable[ope].Order >= rpn.OperateTable[op].Order ){
+						if( OperateTable[ope].Order >= OperateTable[op].Order ){
 							continue;
 						}
 						else{
@@ -273,75 +335,14 @@ rpn["Generate"] = function(exp){
 
 
 /**
- * @description 演算子・その他演算機能の定義
- * 	Order: 演算の優先順位（MDNの定義に準拠）
- * 		https://developer.mozilla.org/ja/docs/Web/JavaScript/Reference/Operators/Operator_Precedence
- * 	Arity: 演算項の数
- *	AssocLow: 結合法則（"":なし, "L":左結合(left to right), "R":右結合(right to left)）
- * 	fn: 演算処理
- */
-rpn.OperateTable = {
-	'(': { Order:20, Type:"state", Arity: 0, AssocLow: "",
-			fn: function(){}
-		},
-	')': { Order:20, Type:"state", Arity: 0, AssocLow: "",
-			fn: function(){}
-		},
-	//+符合の代替
-	'#': {Order:16, Type:"op", Arity: 1, AssocLow: "R",
-			fn: function(_L){ return _L; }
-		},
-	//-符合の代替
-	'_': {Order:16, Type:"op", Arity: 1, AssocLow: "R",
-			fn: function(_L){ return -_L; }
-		},
-	'~': {Order:16, Type:"op", Arity: 1, AssocLow: "R",
-			fn: function(_L){ return ~_L; }
-		},
-	'**': {Order:15, Type:"op", Arity: 2, AssocLow: "R",
-			fn: function(_L, _R){ return _L ** _R; }
-		},
-	'*': {Order:14, Type:"op", Arity: 2, AssocLow: "L",
-			fn: function(_L, _R){ return _L * _R; }	
-		},
-	'/': {Order:14, Type:"op", Arity: 2, AssocLow: "L",
-			fn: function(_L, _R){ return _L / _R; }
-		},
-	'%': {Order:14, Type:"op", Arity: 2, AssocLow: "L",
-			fn: function(_L, _R){ return _L % _R; }
-		},
-	'+': {Order:13, Type:"op", Arity: 2, AssocLow: "L",
-			fn: function(_L, _R){ return _L + _R; }
-		},
-	'-': {Order:13, Type:"op", Arity: 2, AssocLow: "L",
-			fn: function(_L, _R){ return _L - _R; }
-		},
-	'<<': {Order:12, Type:"op", Arity: 2, AssocLow: "L",
-			fn: function(_L, _R){ return _L << _R; }
-		},
-	'>>': {Order:12, Type:"op", Arity: 2, AssocLow: "L",
-			fn: function(_L, _R){ return _L >> _R; }
-		},
-	'&': {Order:9, Type:"op", Arity: 2, AssocLow: "L",
-			fn: function(_L, _R){ return _L & _R; }
-		},
-	'^': {Order:8, Type:"op", Arity: 2, AssocLow: "L",
-			fn: function(_L, _R){ return _L ^ _R; }
-		},
-	'|': {Order:7, Type:"op", Arity: 2, AssocLow: "L",
-			fn: function(_L, _R){ return _L | _R; }
-		}
-};
-
-/**
  * @description デフォルトサポートの演算子以外の機能追加（差し替え）
  * @param {string} _name Operator name
  * @param {number} _arity Argument num (Operand num)
  * @param {Object} _fn Operator Function
  */
 rpn["SetOperate"] = function(_name, _arity, _fn){
-	rpn.OperateTable[_name] = {Order:18, Type:"fn", Arity: _arity, AssocLow: "L", fn: _fn };
-	return this;
+	OperateTable[_name] = {Order:18, Type:"fn", Arity: _arity, AssocLow: "L", fn: _fn };
+	return rpn;
 };
 
 return rpn;
