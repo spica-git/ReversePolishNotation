@@ -1,4 +1,4 @@
-# ReversePolishNotation
+# Reverse Polish Notation
 
 ## Generate rpn exapmle
 ```javascript:Generate
