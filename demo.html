@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>逆ポーランド記法計算機</title>
+	<script src="rpn.min.js"></script>
+</head>
+<script>
+	function SetExp(val){
+		document.getElementById("exp").value = val || "";
+	}
+	function GenRPN(val){
+		if(val){
+			val = (new RPN).Generate(val);
+		}
+		else{
+			val = (new RPN).Generate(document.getElementById("exp").value);
+		}
+		document.getElementById("rpn-exp").value = val;
+	}
+	function CalcRPN(){
+		var val = (new RPN).Calculate(document.getElementById("rpn-exp").value);
+		document.getElementById("result").value = val;
+	}
+
+//----------------------------------------
+// 演算機能の追加
+(new RPN)
+//円周率取得
+.SetOperate("PI", 0, function(){ return Math.PI; })
+
+//サイン取得（角度を引数として取る）
+.SetOperate("sin", 1, function(arg1){ return Math.sin(arg1*(Math.PI/180)); })
+
+//コサイン取得（角度を引数として取る）
+.SetOperate("cos", 1, function(arg1){ return Math.cos(arg1*(Math.PI/180)); })
+
+//文字列を数値化
+.SetOperate("toNum", 1, function(arg1){
+	if(typeof arg1 === "number"){ return arg1; }
+	arg1 = arg1.toString();
+	if(isNaN(arg1)){ return arg1; }
+	return arg1.indexOf("0x") != -1 ? parseInt(arg1, 10) : parseFloat(arg1);
+})
+
+//数値を文字列化
+.SetOperate("toStr", 1, function(arg1){ return arg1.toString(); })
+
+//数値を文字列として結合してから再度数値化して返す（引数ふたつ）
+.SetOperate("merge", 2,
+	function(arg1, arg2){
+		return parseInt(arg1.toString() + arg2.toString(), 10);
+	}
+);
+
+</script>
+<body>
+	<div style="padding:32px;">
+		<p style="white-space: pre-wrap;">
+逆ポーランド記法計算機です
+　（精度はJavascriptの動作に依存）
+　
+
+・使える演算子
+	(　)　+　-　*　/　%　<<　>>　&　^　|
+	** (※べき乗)
+	~ (※ビット反転)
+
+	計算式のサンプル
+		ex) <button onClick="SetExp(this.innerText)">2 * (5 + 7)</button>
+
+・サンプル定義済みコマンド
+	PI → 円周率
+		ex) <button onClick="SetExp(this.innerText)">PI</button>
+
+	cos → コサイン
+		ex) <button onClick="SetExp(this.innerText)">cos 60</button>
+
+	sin → サイン
+		ex) <button onClick="SetExp(this.innerText)">sin (45 + 45)</button>
+
+	toStr → 文字列変換
+	toNum → 数値変換
+	merge → ２つの数値を文字列結合してから数値化 
+		ex) <button onClick="SetExp(this.innerText)">toNum(toStr(2 + 1) + 0) * merge(3,4)</button>
+
+		</p>
+		<p>
+			計算式（中置記法）<br>
+			<input id="exp" type="text" style="padding:4px; min-width:20rem; width:80%"></input><br>
+			<button onClick="GenRPN();">逆ポーランド記法の式を生成</button>
+			<p id="exp"></p>
+		</p>
+		<p>
+			逆ポーランド記法の式<br>
+			<input id="rpn-exp" type="text" style="padding:4px; min-width:20rem; width:80%"></input><br>
+			<button id="sa" onClick="CalcRPN();">演算実行</button>
+		</p>
+		<p>
+			計算結果<br>
+			<input id="result" type="text" style="padding:4px; min-width:20rem; width:80%"></input>
+		</p>
+	</div>
+</body>
+
