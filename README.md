@@ -7,6 +7,7 @@
 
   rpn.Generate("~-5*4**(0x0f - 12)**2");
   // => 5 _ ~ 4 15 12 - 2 ** ** *
+  //# menus sign replace to '_'
 ```
 
 ## Calculate rpn example
