@@ -10,21 +10,21 @@
 	}
 	function GenRPN(val){
 		if(val){
-			val = (new RPN).Generate(val);
+			val = rpn.Generate(val);
 		}
 		else{
-			val = (new RPN).Generate(document.getElementById("exp").value);
+			val = rpn.Generate(document.getElementById("exp").value);
 		}
 		document.getElementById("rpn-exp").value = val;
 	}
 	function CalcRPN(){
-		var val = (new RPN).Calculate(document.getElementById("rpn-exp").value);
+		var val = rpn(document.getElementById("rpn-exp").value);
 		document.getElementById("result").value = val;
 	}
 
 //----------------------------------------
 // 演算機能の追加
-(new RPN)
+rpn
 //円周率取得
 .SetOperate("PI", 0, function(){ return Math.PI; })
 

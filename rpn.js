@@ -4,55 +4,155 @@
 //・演算機能を定義して拡張することで、独自のスクリプト言語のように使える
 //
 //◆実装
-//	globalに"RPN"を追加。インスタンスを作って使う。
+//	window.rpn を追加（global公開）
 //
-//	・オブジェクトメンバー
-//	RPN.prototype.Generate -> 逆ポーランド記法の式を作る
-//	RPN.prototype.Calculate -> 逆ポーランド記法の式を計算する
-//	RPN.prototype.SetOperate -> 演算機能の追加
-//	RPN.OperateTable -> 演算子と機能の各種パラメータと処理本体の定義
+//	rpn -> 逆ポーランド記法（後置記法）の式を計算する
+//	rpn.Generate -> 中置記法から逆ポーランド記法（後置記法）の式を作る
+//	rpn.SetOperate -> 演算機能の追加
 //
 //◆example
 //	・一般的な四則演算
-//		console.log( (new RPN).Generate("2*(5+7)") )
+//		console.log( rpn.Generate("2*(5+7)") )
 //			> "2 5 7 + *"
-//		console.log( (new RPN).Calculate("2 5 7 + *") )
+//		console.log( rpn("2 5 7 + *") )
 //			> 24
+//
 //	・符合、16進数、単項演算、右結合を含んだ式の計算
-//		console.log( (new RPN).Generate("~-5*4**(0x0f-12)**2") )
+//		console.log( rpn.Generate("~-5*4**(0x0f-12)**2") )
 //			> "5 _ ~ 4 15 12 - 2 ** ** *"
-//		console.log( (new RPN).Calculate("5 _ ~ 4 15 12 - 2 ** ** *") )
+//		console.log( rpn("5 _ ~ 4 15 12 - 2 ** ** *") )
 //			> 1048576
+//
 //	・演算機能の拡張
-//		サイン値の取得機能を追加
-//		(new RPN).SetOperate("sin", 1, function(arg1){ return Math.sin(arg1*(Math.PI/180)); })
+//		rpn.SetOperate(name, arity, function)
+//		ex) サイン値の取得機能を追加
+//			rpn.SetOperate("sin", 1, function(arg1){ return Math.sin(arg1*(Math.PI/180)); })
+//
 //	・拡張した演算機能（サイン）
-//		console.log( (new RPN).Generate("sin 90") )
-//			> "90 sin"
-//		console.log( (new RPN).Generate("sin(90)") )
-//			> "90 sin"
-//		console.log( (new RPN).Calculate("90 sin") )
-//			> 1
-//	・拡張した演算機能を関数呼出しっぽい記述で使う
-//		console.log( (new RPN).Generate("toNum(toStr(2 + 1) + 0) * merge(3,4)") )
-//			> "2 1 + toStr 0 + toNum 3 4 merge *"
-//		console.log( (new RPN).Calculate("2 1 + toStr 0 + toNum 3 4 merge *") )
-//			> 1020
+//		ex) 前置記法で記述して後置記法を生成、計算
+//			console.log( rpn.Generate("sin 90") )
+//				> "90 sin"
+//			console.log( rpn("90 sin") )
+//				> 1
+//
+//		ex) 関数呼び出しのように記述して後置記法を生成、計算
+//			console.log( rpn.Generate("sin(45 + 45)") )
+//				> "45 45 + sin"
+//			console.log( rpn("45 45 + sin") )
+//				> 1
 
-//global名 "RPN" に機能を追加する
-window["RPN"] = 
+window["rpn"] = 
 (function(){
 "use strict";
 
-//var rpn = _root["RPN"] = function(){};
-//var rpn = function(){};
-function rpn(){};
+	/**
+ * @description 逆ポーランド記法の式を計算する
+ * @param {string} rpn_exp 計算式
+ */
+function rpn(rpn_exp){
+	///引数エラー判定
+	if( !rpn_exp || typeof rpn_exp !== "string" ){ throw new Error("illegal arg type"); }
+
+	//演算子と演算項を切り分けて配列化する。再起するので関数化。
+	function fnSplitOperator(_val, _stack){
+		if(_val == ""){ return; }
+
+		//演算子判定
+		if(rpn.OperateTable[_val] != null){
+			_stack.push({value:_val, Type:rpn.OperateTable[_val].Type});
+			return;
+		}
+
+		//演算子を含む文字列かどうか判定
+		for(var op in rpn.OperateTable){
+			var piv = _val.indexOf(op);
+			if(piv != -1){
+				fnSplitOperator(_val.substring(0, piv), _stack);
+				fnSplitOperator(_val.substring(piv, piv + op.length), _stack);
+				fnSplitOperator(_val.substring(piv + op.length), _stack);
+				return;
+			}
+		}
+
+		//数値
+		if(!isNaN(_val)){
+			_stack.push({value:_val, Type:"num"});
+		}
+		//文字列
+		else {
+			_stack.push({value:_val, Type:"str"});
+		}
+	};
+
+	//切り分け実行
+	//式を空白文字かカンマでセパレートして配列化＆これらデリミタを式から消す副作用
+	var rpn_stack = [];
+	for(var i=0, rpn_array=rpn_exp.split(/\s+|,/); i < rpn_array.length; i++){
+		fnSplitOperator(rpn_array[i], rpn_stack);
+	}
+
+
+	///演算開始
+	var calc_stack = []; //演算結果スタック
+	while(rpn_stack.length > 0){
+		var elem = rpn_stack.shift();
+		switch(elem.Type){
+			//演算項（数値のparse）
+			case "num":
+				calc_stack.push(
+					elem.value.indexOf("0x") != -1 ? parseInt(elem.value,16) : parseFloat(elem.value)
+				);
+				break;
+
+			//演算項（文字列）※数値以外のリテラルを扱うような機能は未サポート
+			case "str":
+				calc_stack.push(elem.value);
+				break;
+
+			//制御文 ※計算時にはないはずなのでwarningを出して無視
+			case "state":
+				console.warn("inclute statement:" + elem.value);
+				break;
+
+			//演算子・計算機能
+			case "op": case "fn":
+				var operate = rpn.OperateTable[elem.value];
+				if(operate == null){ throw new Error("not exist operate:" + elem.value); }
+
+				//演算に必要な数だけ演算項を抽出
+				var args = [];
+				for(var i=0; i < operate.Arity; i++){
+					if(calc_stack.length > 0){
+						args.unshift(calc_stack.pop());
+					}
+					else{
+						throw new Error("not enough operand");
+					}
+				}
+
+				//演算を実行して結果をスタックへ戻す
+				var res = operate.fn.apply(null, args);
+				if(res != null){ calc_stack.push(res); }
+				break;
+		}
+	}
+
+	///途中失敗の判定
+	if(rpn_stack.length > 0 || calc_stack.length !== 1){
+		console.warn({message:"calculate unfinished", rest_rpn: rpn_stack, result_value: calc_stack});
+		return null;
+	}
+
+	///計算結果を戻す
+	return calc_stack[0];
+}
+
+
 /**
  * @description 計算式から逆ポーランド記法を生成
  * @param {string} exp 計算式
  */
-rpn.prototype["Generate"] = function(exp){
-
+rpn["Generate"] = function(exp){
 	///引数エラー判定
 	if(typeof exp !== "string"){ throw new Error("illegal arg type"); }
 
@@ -73,7 +173,7 @@ rpn.prototype["Generate"] = function(exp){
 		///数値抽出（整数・小数・16進数）
 		var g = exp.match(/(^0x[0-9a-f]+)|(^[0-9]+(\.[0-9]+)?)/i);
 		if(g != null){
-			Polish.push( g[0].indexOf("0x") === 0 ? parseInt(g[0],10) : parseFloat(g[0]));
+			Polish.push( g[0].indexOf("0x") === 0 ? parseInt(g[0],16) : parseFloat(g[0]));
 			exp = exp.substring(g[0].length);
 			unary = false;
 			continue;
@@ -171,109 +271,6 @@ rpn.prototype["Generate"] = function(exp){
 }
 
 
-/**
- * @description 逆ポーランド記法の式を計算する
- * @param {string} rpn_exp 計算式
- */
-rpn.prototype["Calculate"] = function(rpn_exp){
-	///引数エラー判定
-	if( !rpn_exp || typeof rpn_exp !== "string" ){ throw new Error("illegal arg type"); }
-
-	//演算子と演算項を切り分けて配列化する。再起するので関数化。
-	function fnSplitOperator(_val, _stack){
-		if(_val == ""){ return; }
-
-		//演算子判定
-		if(rpn.OperateTable[_val] != null){
-			_stack.push({value:_val, Type:rpn.OperateTable[_val].Type});
-			return;
-		}
-
-		//演算子を含む文字列かどうか判定
-		for(var op in rpn.OperateTable){
-			var piv = _val.indexOf(op);
-			if(piv != -1){
-				fnSplitOperator(_val.substring(0, piv), _stack);
-				fnSplitOperator(_val.substring(piv, piv + op.length), _stack);
-				fnSplitOperator(_val.substring(piv + op.length), _stack);
-				return;
-			}
-		}
-
-		//数値
-		if(!isNaN(_val)){
-			_stack.push({value:_val, Type:"num"});
-		}
-		//文字列
-		else {
-			_stack.push({value:_val, Type:"str"});
-		}
-	};
-
-	//切り分け実行
-	//式を空白文字かカンマでセパレートして配列化＆これらデリミタを式から消す副作用
-	var rpn_stack = [];
-	for(var i=0, rpn_array=rpn_exp.split(/\s+|,/); i < rpn_array.length; i++){
-		fnSplitOperator(rpn_array[i], rpn_stack);
-	}
-
-
-	///演算開始
-	var calc_stack = []; //演算結果スタック
-	while(rpn_stack.length > 0){
-		var elem = rpn_stack.shift();
-		switch(elem.Type){
-			//演算項（数値のparse）
-			case "num":
-				calc_stack.push(
-					elem.value.indexOf("0x") != -1 ? parseInt(elem.value,10) : parseFloat(elem.value)
-				);
-				break;
-
-			//演算項（文字列）※数値以外のリテラルを扱うような機能は未サポート
-			case "str":
-				calc_stack.push(elem.value);
-				break;
-
-			//制御文 ※計算時にはないはずなのでwarningを出して無視
-			case "state":
-				console.warn("inclute statement:" + elem.value);
-				break;
-
-			//演算子・計算機能
-			case "op": case "fn":
-				var operate = rpn.OperateTable[elem.value];
-				if(operate == null){ throw new Error("not exist operate:" + elem.value); }
-
-				//演算に必要な数だけ演算項を抽出
-				var args = [];
-				for(var i=0; i < operate.Arity; i++){
-					if(calc_stack.length > 0){
-						args.unshift(calc_stack.pop());
-					}
-					else{
-						throw new Error("not enough operand");
-					}
-				}
-
-				//演算を実行して結果をスタックへ戻す
-				var res = operate.fn.apply(null, args);
-				if(res != null){ calc_stack.push(res); }
-				break;
-		}
-	}
-
-	///途中失敗の判定
-	if(rpn_stack.length > 0 || calc_stack.length !== 1){
-		console.warn({message:"calculate unfinished", rest_rpn: rpn_stack, result_value: calc_stack});
-		return null;
-	}
-
-	///計算結果を戻す
-	return calc_stack[0];
-}
-
-
 
 /**
  * @description 演算子・その他演算機能の定義
@@ -342,7 +339,7 @@ rpn.OperateTable = {
  * @param {number} _arity Argument num (Operand num)
  * @param {Object} _fn Operator Function
  */
-rpn.prototype["SetOperate"] = function(_name, _arity, _fn){
+rpn["SetOperate"] = function(_name, _arity, _fn){
 	rpn.OperateTable[_name] = {Order:18, Type:"fn", Arity: _arity, AssocLow: "L", fn: _fn };
 	return this;
 };
