@@ -1,7 +1,7 @@
 # Reverse Polish Notation
 
 ## Generate rpn exapmle
-```Javascript:Generate
+```javascript
   rpn.Generate("2*(5 + 7)");
   // => 2 5 7 + *
 
@@ -10,7 +10,7 @@
 ```
 
 ## Calculate rpn example
-```javascript:Calculate
+```javascript
   rpn("2 5 7 + *");
   // => 24
 
@@ -20,7 +20,7 @@
 
 ## Add operate function
 rpn.SetOperate(name, arity, function)
-```javascript:Add operator
+```javascript
   //#Chain method available
   //sign and cosign
   rpn.SetOperate("sin", 1, function(arg1){ return Math.sin(arg1*(Math.PI/180)); })
