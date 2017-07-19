@@ -32,9 +32,9 @@ rpn.SetOperate(name, arity, function)
 ```
 
 ## Supported operator
-  \+
+  \+ 
   -
-  \*
+  \* 
   \*\*
   /
   %
