@@ -1,7 +1,7 @@
 # Reverse Polish Notation
 
 ## Generate rpn exapmle
-```javascript:Generate
+```Javascript:Generate
   rpn.Generate("2*(5 + 7)");
   // => 2 5 7 + *
 
