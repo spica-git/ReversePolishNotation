@@ -359,7 +359,6 @@ rpn["Generate"] = function(exp){
 }
 
 
-
 /**
  * @description デフォルトサポートの演算子以外の機能追加（差し替え）
  * @param {string} _name Operator name
@@ -367,7 +366,12 @@ rpn["Generate"] = function(exp){
  * @param {Object} _fn Operator Function
  */
 rpn["SetOperate"] = function(_name, _arity, _fn){
-	OperateTable[_name] = {Order:18, Type:"fn", Arity: _arity, AssocLow: "L", fn: _fn };
+	if(typeof _name != "string" || !_name || typeof _arity != "number" || typeof _fn != "function"){
+		console.warn("SetOperate arg type error");
+	}
+	else{
+		OperateTable[_name] = {Order:18, Type:"fn", Arity: _arity, AssocLow: "L", fn: _fn };
+	}
 	return rpn;
 };
 
