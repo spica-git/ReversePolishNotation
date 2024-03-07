@@ -309,12 +309,14 @@ rpn["Generate"] = function(exp){
 					//※優先順位が同じなのは結合法則がright to leftのものだけスタックに積んである
 					while( ope_stack[depth].length > 0 ){
 						var ope = ope_stack[depth].shift();
-						Polish.push( ope );
 						//演算優先度が、スタック先頭の演算子以上ならば、続けて式に演算子を積む
 						if( OperateTable[ope].Order >= OperateTable[op].Order ){
+							Polish.push( ope );
 							continue;
 						}
 						else{
+							//演算優先度が、スタック先頭の演算子より低いならば、スタックに戻す
+							ope_stack[depth].unshift(ope);
 							break;
 						}
 					}
